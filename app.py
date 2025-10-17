@@ -130,6 +130,71 @@ def evaluate():
     print(f"[EVALUATE] Received: {json.dumps(data)}")
     return jsonify({"status": "ok"}), 200
 
+def process_task(data):
+    repo_name = data["task"]
+    output_dir = f"temp/{repo_name}"
+    os.makedirs(output_dir, exist_ok=True)
+
+    try:
+        # ----------------------------
+        # Generate app (Gemini first)
+        # ----------------------------
+        print(f"[TASK] Generating app for task: {repo_name} using Gemini API...")
+        try:
+            generate_app(
+                brief=data.get("brief", ""),
+                attachments=data.get("attachments", []),
+                output_dir=output_dir,
+                use_mock=False  # Gemini first; fallback handled internally
+            )
+            print(f"[TASK] Gemini generation completed for task: {repo_name}")
+        except Exception as gem_e:
+            print(f"[ERROR] Gemini API failed for task {repo_name}: {gem_e}")
+            print(f"[INFO] Falling back to mock mode for task {repo_name}")
+            # Force mock mode if Gemini fails
+            generate_app(
+                brief=data.get("brief", ""),
+                attachments=data.get("attachments", []),
+                output_dir=output_dir,
+                use_mock=True
+            )
+
+        # ----------------------------
+        # Deploy to GitHub
+        # ----------------------------
+        repo_url, commit_sha, pages_url = deploy_to_github(
+            output_dir,
+            repo_name,
+            token=GITHUB_TOKEN
+        )
+
+        # ----------------------------
+        # Notify evaluation server
+        # ----------------------------
+        payload = {
+            "email": data.get("email"),
+            "task": data.get("task"),
+            "round": data.get("round"),
+            "nonce": data.get("nonce"),
+            "repo_url": repo_url,
+            "commit_sha": commit_sha,
+            "pages_url": pages_url
+        }
+        eval_url = data.get("evaluation_url")
+        print(f"[INFO] Sending evaluation payload to {eval_url}")
+        post_with_retry(eval_url, payload)
+        print("[INFO] Evaluation notification sent successfully.")
+
+    except Exception as e:
+        print(f"[ERROR] Task processing failed for task {repo_name}: {e}")
+
+    finally:
+        # ----------------------------
+        # Cleanup temp directory
+        # ----------------------------
+        shutil.rmtree(output_dir, ignore_errors=True)
+        print(f"[CLEANUP] Removed temp folder: {output_dir}")
+
 # ----------------------------
 # MAIN ENTRY
 # ----------------------------
@@ -138,3 +203,4 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     print(f"[START] Running server on port {port}")
     app.run(host="0.0.0.0", port=port)
+
