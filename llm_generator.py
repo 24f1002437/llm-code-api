@@ -5,7 +5,7 @@ try:
     from google import genai  # Gemini API client
 except ImportError:
     genai = None
-
+USE_MOCK = False 
 from config import GEMINI_API_KEY
 
 def generate_app(brief: str, attachments: list, output_dir: str, use_mock: bool = False):
@@ -113,3 +113,4 @@ Each file should be clearly marked using ### FILE: filename
             f.write("MIT License")
         print(f"[MOCK] App generated in {output_dir}")
         return output_dir
+
