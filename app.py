@@ -17,8 +17,8 @@ print(f"[INIT] Secret Loaded: {'Yes' if SECRET else 'No'}")
 print(f"[INIT] Gemini API Key Loaded: {'Yes' if GEMINI_API_KEY else 'No'}")
 print("--------------------------------------------------")
 
-# Auto-detect mock/live mode
-USE_MOCK = not bool(GEMINI_API_KEY)
+# Force live mode if GEMINI_API_KEY exists
+USE_MOCK = False if GEMINI_API_KEY else True
 print(f"[MODE] {'MOCK' if USE_MOCK else 'LIVE (Gemini API Active)'} mode enabled.")
 
 # ----------------------------
@@ -42,7 +42,7 @@ def process_task(data):
     os.makedirs(output_dir, exist_ok=True)
 
     try:
-        # 1️⃣ Generate app using Gemini or mock mode
+        # 1️⃣ Generate app using Gemini
         generate_app(
             brief=data.get("brief", ""),
             attachments=data.get("attachments", []),
@@ -83,7 +83,6 @@ def process_task(data):
 # ----------------------------
 # ROUTES
 # ----------------------------
-
 @app.route("/", methods=["GET"])
 def home():
     """Health check route."""
