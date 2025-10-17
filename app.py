@@ -10,7 +10,7 @@ from config import GITHUB_USERNAME, GITHUB_TOKEN, SECRET, GEMINI_API_KEY
 # ----------------------------
 # CONFIG
 # ----------------------------
-USE_MOCK = False  # True = local mock, False = Gemini API
+USE_MOCK = True  # True = local mock, False = Gemini API
 
 # ----------------------------
 # FLASK APP
@@ -109,3 +109,4 @@ def evaluate():
 if __name__ == "__main__":
     os.makedirs("temp", exist_ok=True)
     app.run(host="0.0.0.0", port=5000)
+
