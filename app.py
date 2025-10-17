@@ -34,7 +34,12 @@ def process_task(data):
 
     try:
         # 1. Generate app using LLM
-        generate_app(data.get("brief", ""), data.get("attachments", []), output_dir, use_mock=USE_MOCK)
+        generate_app(
+            brief=data.get("brief", ""),
+            attachments=data.get("attachments", []),
+            output_dir=output_dir,
+            use_mock=USE_MOCK
+        )
 
         # 2. Deploy to GitHub
         repo_url, commit_sha, pages_url = deploy_to_github(output_dir, repo_name, token=GITHUB_TOKEN)
@@ -50,6 +55,7 @@ def process_task(data):
             "pages_url": pages_url
         }
         post_with_retry(data.get("evaluation_url"), payload)
+
     finally:
         # 4. Cleanup temp directory
         shutil.rmtree(output_dir, ignore_errors=True)
