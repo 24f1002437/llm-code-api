@@ -5,7 +5,7 @@ try:
     from google import genai  # Gemini API client
 except ImportError:
     genai = None
-USE_MOCK = False 
+
 from config import GEMINI_API_KEY
 
 def generate_app(brief: str, attachments: list, output_dir: str, use_mock: bool = False):
@@ -45,7 +45,9 @@ def generate_app(brief: str, attachments: list, output_dir: str, use_mock: bool 
     # ----------------------------
     if not use_mock and genai is not None and GEMINI_API_KEY:
         try:
-            gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+            print("[TASK] Generating app using Gemini API...")
+            gemini_client = genai.GenAI(api_key=GEMINI_API_KEY)
+
             attachment_info = "\n".join([f"{att.get('name','?')}: {att.get('url','')[:50]}..." for att in attachments])
             prompt = f"""
 You are an expert web developer.
@@ -61,14 +63,15 @@ Provide:
 - MIT LICENSE
 Each file should be clearly marked using ### FILE: filename
 """
-            response = gemini_client.generate_text(
+
+            response = gemini_client.text.create(
                 model="gemini-2.5-flash",
                 prompt=prompt,
                 temperature=0.2,
                 max_output_tokens=2000
             )
 
-            code_text = response.text
+            code_text = response.output_text
 
             # Save raw output for debugging
             with open(os.path.join(output_dir, "gemini_raw.txt"), "w", encoding="utf-8") as f:
@@ -105,6 +108,7 @@ Each file should be clearly marked using ### FILE: filename
     # MOCK MODE (fallback)
     # ----------------------------
     if use_mock or genai is None or not GEMINI_API_KEY:
+        print("[MOCK] Generating fallback app...")
         with open(os.path.join(output_dir, "index.html"), "w", encoding="utf-8") as f:
             f.write("<!DOCTYPE html><html><body><h1>Hello World</h1></body></html>")
         with open(os.path.join(output_dir, "README.md"), "w", encoding="utf-8") as f:
@@ -113,4 +117,3 @@ Each file should be clearly marked using ### FILE: filename
             f.write("MIT License")
         print(f"[MOCK] App generated in {output_dir}")
         return output_dir
-
