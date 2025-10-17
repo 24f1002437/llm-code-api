@@ -1,25 +1,12 @@
-# llm_generator.py
 import os
 import base64
-try:
-    from google import genai  # Gemini API client
-except ImportError:
-    genai = None
-
+import google.generativeai as genai  #  Correct Gemini SDK
 from config import GEMINI_API_KEY
+
 
 def generate_app(brief: str, attachments: list, output_dir: str, use_mock: bool = False):
     """
     Generates a minimal HTML/CSS/JS app using Gemini API first, fallback to mock.
-
-    Parameters:
-        brief (str): Task brief
-        attachments (list): List of attachments (name + data URI)
-        output_dir (str): Directory to save generated files
-        use_mock (bool): Force mock mode (optional)
-
-    Returns:
-        str: Path to output directory
     """
     os.makedirs(output_dir, exist_ok=True)
 
@@ -43,12 +30,16 @@ def generate_app(brief: str, attachments: list, output_dir: str, use_mock: bool 
     # ----------------------------
     # TRY GEMINI API FIRST
     # ----------------------------
-    if not use_mock and genai is not None and GEMINI_API_KEY:
+    if not use_mock and GEMINI_API_KEY:
         try:
             print("[TASK] Generating app using Gemini API...")
-            gemini_client = genai.GenAI(api_key=GEMINI_API_KEY)
+            genai.configure(api_key=GEMINI_API_KEY)
 
-            attachment_info = "\n".join([f"{att.get('name','?')}: {att.get('url','')[:50]}..." for att in attachments])
+            model = genai.GenerativeModel("gemini-1.5-flash")
+
+            attachment_info = "\n".join([
+                f"{att.get('name','?')}: {att.get('url','')[:50]}..." for att in attachments
+            ])
             prompt = f"""
 You are an expert web developer.
 Generate a minimal working HTML/CSS/JS app based on this brief:
@@ -64,14 +55,8 @@ Provide:
 Each file should be clearly marked using ### FILE: filename
 """
 
-            response = gemini_client.text.create(
-                model="gemini-2.5-flash",
-                prompt=prompt,
-                temperature=0.2,
-                max_output_tokens=2000
-            )
-
-            code_text = response.output_text
+            response = model.generate_content(prompt)
+            code_text = response.text or ""
 
             # Save raw output for debugging
             with open(os.path.join(output_dir, "gemini_raw.txt"), "w", encoding="utf-8") as f:
@@ -97,7 +82,7 @@ Each file should be clearly marked using ### FILE: filename
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(content.strip() or f"<!-- {fname} generated -->")
 
-            print(f"[Gemini] App generated successfully in: {output_dir}")
+            print(f"[Gemini ] App generated successfully in: {output_dir}")
             return output_dir
 
         except Exception as e:
@@ -107,13 +92,12 @@ Each file should be clearly marked using ### FILE: filename
     # ----------------------------
     # MOCK MODE (fallback)
     # ----------------------------
-    if use_mock or genai is None or not GEMINI_API_KEY:
-        print("[MOCK] Generating fallback app...")
-        with open(os.path.join(output_dir, "index.html"), "w", encoding="utf-8") as f:
-            f.write("<!DOCTYPE html><html><body><h1>Hello World</h1></body></html>")
-        with open(os.path.join(output_dir, "README.md"), "w", encoding="utf-8") as f:
-            f.write("# App\nGenerated locally without API.")
-        with open(os.path.join(output_dir, "LICENSE"), "w", encoding="utf-8") as f:
-            f.write("MIT License")
-        print(f"[MOCK] App generated in {output_dir}")
-        return output_dir
+    print("[MOCK] Generating fallback app...")
+    with open(os.path.join(output_dir, "index.html"), "w", encoding="utf-8") as f:
+        f.write("<!DOCTYPE html><html><body><h1>Hello World</h1></body></html>")
+    with open(os.path.join(output_dir, "README.md"), "w", encoding="utf-8") as f:
+        f.write("# App\nGenerated locally without API.")
+    with open(os.path.join(output_dir, "LICENSE"), "w", encoding="utf-8") as f:
+        f.write("MIT License")
+    print(f"[MOCK] App generated in {output_dir}")
+    return output_dir
