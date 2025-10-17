@@ -1,3 +1,4 @@
+# app.py
 from flask import Flask, request, jsonify
 import threading
 import os, shutil, json
@@ -102,5 +103,3 @@ def evaluate():
 if __name__ == "__main__":
     os.makedirs("temp", exist_ok=True)
     app.run(host="0.0.0.0", port=5000)
-
-
