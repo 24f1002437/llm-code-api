@@ -35,7 +35,7 @@ def generate_app(brief: str, attachments: list, output_dir: str, use_mock: bool 
             print("[TASK] Generating app using Gemini API...")
             genai.configure(api_key=GEMINI_API_KEY)
 
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
 
             attachment_info = "\n".join([
                 f"{att.get('name','?')}: {att.get('url','')[:50]}..." for att in attachments
@@ -101,3 +101,4 @@ Each file should be clearly marked using ### FILE: filename
         f.write("MIT License")
     print(f"[MOCK] App generated in {output_dir}")
     return output_dir
+
