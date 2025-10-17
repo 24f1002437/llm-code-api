@@ -76,14 +76,14 @@ Each file should be clearly marked using ### FILE: filename
     # ----------------------------
     try:
         gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-        response = gemini_client.chat.create(
+        response = gemini_client.generate_text(
             model="gemini-2.5-flash",
-            messages=[{"role": "user", "content": prompt}],
+            prompt=prompt,
             temperature=0.2,
             max_output_tokens=2000
         )
 
-        code_text = response.last.content[0].text
+        code_text = response.text  # Use .text
 
         # Save raw output for debugging
         with open(os.path.join(output_dir, "gemini_raw.txt"), "w", encoding="utf-8") as f:
