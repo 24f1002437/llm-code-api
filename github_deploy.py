@@ -6,9 +6,7 @@ from git import Repo, GitCommandError
 from config import GITHUB_USERNAME, GITHUB_TOKEN
 
 def create_github_repo(repo_name: str):
-    """
-    Creates a public GitHub repo if it doesn't exist.
-    """
+    """Creates a public GitHub repo if it doesn't exist."""
     url = "https://api.github.com/user/repos"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     data = {"name": repo_name, "private": False}
@@ -22,10 +20,27 @@ def create_github_repo(repo_name: str):
         print(f"[ERROR] Failed to create repo: {r.json()}")
         raise Exception("Cannot create repo")
 
+def enable_github_pages(repo_name: str):
+    """Enables GitHub Pages on the main branch root directory."""
+    url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{repo_name}/pages"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    data = {
+        "source": {
+            "branch": "main",
+            "path": "/"
+        }
+    }
+    r = requests.post(url, json=data, headers=headers)
+    if r.status_code in (201, 204):
+        print(f"[INFO] GitHub Pages enabled for {repo_name}")
+    elif r.status_code == 409:
+        # Pages already enabled
+        print(f"[INFO] GitHub Pages already enabled for {repo_name}")
+    else:
+        print(f"[WARN] Could not enable GitHub Pages: {r.json()}")
+
 def deploy_to_github(local_dir: str, repo_name: str, token: str = GITHUB_TOKEN):
-    """
-    Pushes generated app to GitHub and returns repo URLs.
-    """
+    """Pushes generated app to GitHub and enables Pages."""
     repo_url = f"https://{GITHUB_USERNAME}:{token}@github.com/{GITHUB_USERNAME}/{repo_name}.git"
     pages_url = f"https://{GITHUB_USERNAME}.github.io/{repo_name}/"
 
@@ -60,4 +75,8 @@ def deploy_to_github(local_dir: str, repo_name: str, token: str = GITHUB_TOKEN):
 
     commit_sha = repo.head.commit.hexsha
     print(f"[INFO] Deployed {repo_name} to GitHub at commit {commit_sha}")
+
+    # Enable GitHub Pages
+    enable_github_pages(repo_name)
+
     return repo_url, commit_sha, pages_url
