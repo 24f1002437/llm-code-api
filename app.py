@@ -15,7 +15,6 @@ print(f"[INIT] Secret Loaded: {'Yes' if SECRET else 'No'}")
 print(f"[INIT] Gemini API Key Loaded: {'Yes' if GEMINI_API_KEY else 'No'}")
 print("--------------------------------------------------")
 
-# Auto-detect mock/live mode
 USE_MOCK = False  # Start with Gemini; fallback handled in llm_generator
 print(f"[MODE] {'MOCK' if USE_MOCK else 'LIVE (Gemini API Active)'} mode enabled.")
 
@@ -40,22 +39,33 @@ def process_task(data):
     os.makedirs(output_dir, exist_ok=True)
 
     try:
-        # Generate app (Gemini first)
-        generate_app(
+        print(f"[TASK] Generating app for task: {repo_name} using Gemini API...")
+        result_dir = generate_app(
             brief=data.get("brief", ""),
             attachments=data.get("attachments", []),
             output_dir=output_dir,
-            use_mock=USE_MOCK  # Gemini first, mock fallback handled internally
+            use_mock=False  # Start with Gemini, fallback handled internally
         )
 
+        # Detect if Gemini was actually used
+        gemini_used = os.path.exists(os.path.join(result_dir, "gemini_raw.txt"))
+        if gemini_used:
+            print(f"[TASK] Gemini generation completed for task: {repo_name}")
+        else:
+            print(f"[TASK] Fallback mock generation used for task: {repo_name}")
+
+        # ----------------------------
         # Deploy to GitHub
+        # ----------------------------
         repo_url, commit_sha, pages_url = deploy_to_github(
             output_dir,
             repo_name,
             token=GITHUB_TOKEN
         )
 
+        # ----------------------------
         # Notify evaluation server
+        # ----------------------------
         payload = {
             "email": data.get("email"),
             "task": data.get("task"),
@@ -75,7 +85,6 @@ def process_task(data):
         print(f"[ERROR] Task processing failed: {e}")
 
     finally:
-        #  Cleanup temp directory
         shutil.rmtree(output_dir, ignore_errors=True)
         print(f"[CLEANUP] Removed temp folder: {output_dir}")
 
@@ -131,61 +140,6 @@ def evaluate():
     return jsonify({"status": "ok"}), 200
 
 # ----------------------------
-# BACKGROUND TASK
-# ----------------------------
-def process_task(data):
-    repo_name = data["task"]
-    output_dir = f"temp/{repo_name}"
-    os.makedirs(output_dir, exist_ok=True)
-
-    try:
-        print(f"[TASK] Generating app for task: {repo_name} using Gemini API...")
-        result_dir = generate_app(
-            brief=data.get("brief", ""),
-            attachments=data.get("attachments", []),
-            output_dir=output_dir,
-            use_mock=False  # Start with Gemini, fallback inside generator
-        )
-
-        # Detect if Gemini was used or mock
-        gemini_used = os.path.exists(os.path.join(result_dir, "gemini_raw.txt"))
-        if gemini_used:
-            print(f"[TASK] Gemini generation completed for task: {repo_name}")
-        else:
-            print(f"[TASK] Fallback mock generation used for task: {repo_name}")
-
-        # Deploy to GitHub
-        repo_url, commit_sha, pages_url = deploy_to_github(
-            output_dir,
-            repo_name,
-            token=GITHUB_TOKEN
-        )
-
-        # Notify evaluation server
-        payload = {
-            "email": data.get("email"),
-            "task": data.get("task"),
-            "round": data.get("round"),
-            "nonce": data.get("nonce"),
-            "repo_url": repo_url,
-            "commit_sha": commit_sha,
-            "pages_url": pages_url
-        }
-
-        eval_url = data.get("evaluation_url")
-        print(f"[INFO] Sending evaluation payload to {eval_url}")
-        post_with_retry(eval_url, payload)
-        print("[INFO] Evaluation notification sent successfully.")
-
-    except Exception as e:
-        print(f"[ERROR] Task processing failed: {e}")
-
-    finally:
-        # Cleanup temp directory
-        shutil.rmtree(output_dir, ignore_errors=True)
-        print(f"[CLEANUP] Removed temp folder: {output_dir}")
-
-# ----------------------------
 # MAIN ENTRY
 # ----------------------------
 if __name__ == "__main__":
@@ -193,5 +147,3 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     print(f"[START] Running server on port {port}")
     app.run(host="0.0.0.0", port=port)
-
-
