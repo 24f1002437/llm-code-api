@@ -4,6 +4,7 @@ import shutil
 import requests
 from git import Repo, GitCommandError
 from config import GITHUB_USERNAME, GITHUB_TOKEN
+import time
 
 def create_github_repo(repo_name: str):
     """Creates a public GitHub repo if it doesn't exist."""
@@ -34,13 +35,27 @@ def enable_github_pages(repo_name: str):
     if r.status_code in (201, 204):
         print(f"[INFO] GitHub Pages enabled for {repo_name}")
     elif r.status_code == 409:
-        # Pages already enabled
         print(f"[INFO] GitHub Pages already enabled for {repo_name}")
     else:
         print(f"[WARN] Could not enable GitHub Pages: {r.json()}")
 
+def wait_for_pages(pages_url, timeout=60):
+    """Wait until GitHub Pages is reachable (HTTP 200) or timeout."""
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            r = requests.get(pages_url)
+            if r.status_code == 200:
+                print(f"[INFO] GitHub Pages is live: {pages_url}")
+                return True
+        except requests.RequestException:
+            pass
+        time.sleep(2)
+    print(f"[WARN] GitHub Pages not reachable after {timeout}s: {pages_url}")
+    return False
+
 def deploy_to_github(local_dir: str, repo_name: str, token: str = GITHUB_TOKEN):
-    """Pushes generated app to GitHub and enables Pages."""
+    """Pushes generated app to GitHub, enables Pages, and confirms reachability."""
     repo_url = f"https://{GITHUB_USERNAME}:{token}@github.com/{GITHUB_USERNAME}/{repo_name}.git"
     pages_url = f"https://{GITHUB_USERNAME}.github.io/{repo_name}/"
 
@@ -76,7 +91,8 @@ def deploy_to_github(local_dir: str, repo_name: str, token: str = GITHUB_TOKEN):
     commit_sha = repo.head.commit.hexsha
     print(f"[INFO] Deployed {repo_name} to GitHub at commit {commit_sha}")
 
-    # Enable GitHub Pages
+    # Enable GitHub Pages and wait until live
     enable_github_pages(repo_name)
+    wait_for_pages(pages_url)
 
     return repo_url, commit_sha, pages_url
