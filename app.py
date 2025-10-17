@@ -1,7 +1,5 @@
-# app.py
 from flask import Flask, request, jsonify
-import threading
-import os, shutil, json
+import threading, os, shutil, json
 from llm_generator import generate_app
 from github_deploy import deploy_to_github
 from utils import verify_secret, post_with_retry
@@ -17,8 +15,8 @@ print(f"[INIT] Secret Loaded: {'Yes' if SECRET else 'No'}")
 print(f"[INIT] Gemini API Key Loaded: {'Yes' if GEMINI_API_KEY else 'No'}")
 print("--------------------------------------------------")
 
-# Force live mode if GEMINI_API_KEY exists
-USE_MOCK = False if GEMINI_API_KEY else True
+# Auto-detect mock/live mode
+USE_MOCK = False  # Start with Gemini; fallback handled in llm_generator
 print(f"[MODE] {'MOCK' if USE_MOCK else 'LIVE (Gemini API Active)'} mode enabled.")
 
 # ----------------------------
@@ -42,12 +40,12 @@ def process_task(data):
     os.makedirs(output_dir, exist_ok=True)
 
     try:
-        #  Generate app using Gemini
+        # Generate app (Gemini first)
         generate_app(
             brief=data.get("brief", ""),
             attachments=data.get("attachments", []),
             output_dir=output_dir,
-            use_mock=USE_MOCK
+            use_mock=USE_MOCK  # Gemini first, mock fallback handled internally
         )
 
         # Deploy to GitHub
@@ -57,7 +55,7 @@ def process_task(data):
             token=GITHUB_TOKEN
         )
 
-        #  Notify evaluation server
+        # Notify evaluation server
         payload = {
             "email": data.get("email"),
             "task": data.get("task"),
@@ -68,15 +66,16 @@ def process_task(data):
             "pages_url": pages_url
         }
 
-        print(f"[INFO] Sending evaluation payload to {data.get('evaluation_url')}")
-        post_with_retry(data.get("evaluation_url"), payload)
+        eval_url = data.get("evaluation_url")
+        print(f"[INFO] Sending evaluation payload to {eval_url}")
+        post_with_retry(eval_url, payload)
         print("[INFO] Evaluation notification sent successfully.")
 
     except Exception as e:
         print(f"[ERROR] Task processing failed: {e}")
 
     finally:
-        # Cleanup temp directory
+        #  Cleanup temp directory
         shutil.rmtree(output_dir, ignore_errors=True)
         print(f"[CLEANUP] Removed temp folder: {output_dir}")
 
@@ -139,4 +138,3 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     print(f"[START] Running server on port {port}")
     app.run(host="0.0.0.0", port=port)
-
