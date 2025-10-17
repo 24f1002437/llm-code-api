@@ -42,7 +42,7 @@ def process_task(data):
     os.makedirs(output_dir, exist_ok=True)
 
     try:
-        # 1️⃣ Generate app using Gemini
+        #  Generate app using Gemini
         generate_app(
             brief=data.get("brief", ""),
             attachments=data.get("attachments", []),
@@ -50,14 +50,14 @@ def process_task(data):
             use_mock=USE_MOCK
         )
 
-        # 2️⃣ Deploy to GitHub
+        # Deploy to GitHub
         repo_url, commit_sha, pages_url = deploy_to_github(
             output_dir,
             repo_name,
             token=GITHUB_TOKEN
         )
 
-        # 3️⃣ Notify evaluation server
+        #  Notify evaluation server
         payload = {
             "email": data.get("email"),
             "task": data.get("task"),
@@ -76,7 +76,7 @@ def process_task(data):
         print(f"[ERROR] Task processing failed: {e}")
 
     finally:
-        # 4️⃣ Cleanup temp directory
+        # Cleanup temp directory
         shutil.rmtree(output_dir, ignore_errors=True)
         print(f"[CLEANUP] Removed temp folder: {output_dir}")
 
@@ -139,3 +139,4 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     print(f"[START] Running server on port {port}")
     app.run(host="0.0.0.0", port=port)
+
