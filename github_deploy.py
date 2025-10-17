@@ -5,7 +5,24 @@ import requests
 from git import Repo, GitCommandError
 from config import GITHUB_USERNAME, GITHUB_TOKEN
 
-def deploy_to_github(local_dir: str, repo_name: str, token: str):
+def create_github_repo(repo_name: str):
+    """
+    Creates a public GitHub repo if it doesn't exist.
+    """
+    url = "https://api.github.com/user/repos"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    data = {"name": repo_name, "private": False}
+
+    r = requests.post(url, json=data, headers=headers)
+    if r.status_code == 201:
+        print(f"[INFO] Created GitHub repo: {repo_name}")
+    elif r.status_code == 422:
+        print(f"[INFO] Repo {repo_name} already exists")
+    else:
+        print(f"[ERROR] Failed to create repo: {r.json()}")
+        raise Exception("Cannot create repo")
+
+def deploy_to_github(local_dir: str, repo_name: str, token: str = GITHUB_TOKEN):
     """
     Pushes generated app to GitHub and returns repo URLs.
     """
