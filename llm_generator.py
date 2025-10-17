@@ -7,7 +7,7 @@ except ImportError:
     genai = None
 from config import GEMINI_API_KEY
 
-def generate_app(brief: str, attachments: list, output_dir: str, use_mock: bool = True):
+def generate_app(brief: str, attachments: list, output_dir: str, use_mock: bool = False):
     """
     Generates a minimal HTML/CSS/JS app using Gemini API or local mock files.
 
@@ -15,7 +15,7 @@ def generate_app(brief: str, attachments: list, output_dir: str, use_mock: bool 
         brief (str): Task brief
         attachments (list): List of attachments (name + data URI)
         output_dir (str): Directory to save generated files
-        use_mock (bool): If True, generate local mock files instead of calling Gemini
+        use_mock (bool): If True, skip Gemini API and generate local mock files
 
     Returns:
         str: Path to output directory
@@ -23,9 +23,9 @@ def generate_app(brief: str, attachments: list, output_dir: str, use_mock: bool 
     os.makedirs(output_dir, exist_ok=True)
 
     # ----------------------------
-    # MOCK MODE
+    # MOCK MODE FUNCTION
     # ----------------------------
-    if use_mock or genai is None or not GEMINI_API_KEY:
+    def _mock_app():
         with open(os.path.join(output_dir, "index.html"), "w", encoding="utf-8") as f:
             f.write("<!DOCTYPE html><html><body><h1>Hello World </h1></body></html>")
         with open(os.path.join(output_dir, "README.md"), "w", encoding="utf-8") as f:
@@ -34,6 +34,12 @@ def generate_app(brief: str, attachments: list, output_dir: str, use_mock: bool 
             f.write("MIT License ")
         print(f"[MOCK] App generated in {output_dir}")
         return output_dir
+
+    # ----------------------------
+    # If forced mock mode or Gemini not available
+    # ----------------------------
+    if use_mock or genai is None or not GEMINI_API_KEY:
+        return _mock_app()
 
     # ----------------------------
     # SAVE ATTACHMENTS LOCALLY
@@ -72,7 +78,7 @@ Each file should be clearly marked using ### FILE: filename
 """
 
     # ----------------------------
-    # CALL GEMINI API
+    # TRY GEMINI API
     # ----------------------------
     try:
         gemini_client = genai.Client(api_key=GEMINI_API_KEY)
@@ -83,7 +89,7 @@ Each file should be clearly marked using ### FILE: filename
             max_output_tokens=2000
         )
 
-        code_text = response.text  # Use .text
+        code_text = response.text
 
         # Save raw output for debugging
         with open(os.path.join(output_dir, "gemini_raw.txt"), "w", encoding="utf-8") as f:
@@ -91,7 +97,7 @@ Each file should be clearly marked using ### FILE: filename
 
     except Exception as e:
         print(f"[ERROR] Gemini API failed: {e}\nFalling back to mock mode.")
-        return generate_app(brief, attachments, output_dir, use_mock=True)
+        return _mock_app()
 
     # ----------------------------
     # PARSE FILES FROM LLM OUTPUT
